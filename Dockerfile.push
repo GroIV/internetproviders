@@ -1,0 +1,31 @@
+FROM alpine:latest
+
+# Install git and openssh
+RUN apk add --no-cache git openssh-client bash
+
+# Create working directory
+WORKDIR /repo
+
+# Copy the repository
+COPY . .
+
+# Set git config
+RUN git config --global user.email "pablo305@example.com" && \
+    git config --global user.name "Pablo305"
+
+# Create entrypoint script
+RUN echo '#!/bin/bash' > /entrypoint.sh && \
+    echo 'echo "🚀 Docker Git Push Helper"' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Current git status:"' >> /entrypoint.sh && \
+    echo 'git status' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Ready to push to: https://github.com/Pablo305/internetproviders"' >> /entrypoint.sh && \
+    echo 'echo ""' >> /entrypoint.sh && \
+    echo 'echo "Please run one of these commands from outside Docker:"' >> /entrypoint.sh && \
+    echo 'echo "1. Using GitHub CLI: gh auth login && git push -f origin main"' >> /entrypoint.sh && \
+    echo 'echo "2. Using token: git push https://YOUR_TOKEN@github.com/Pablo305/internetproviders.git main -f"' >> /entrypoint.sh && \
+    echo 'echo "3. Or mount your SSH key when running Docker"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

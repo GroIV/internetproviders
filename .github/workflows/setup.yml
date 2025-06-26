@@ -1,0 +1,58 @@
+name: Setup and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run type check
+      run: npm run typecheck
+
+    - name: Build project
+      run: npm run build
+
+    - name: Run tests (if any)
+      run: npm test -- --passWithNoTests
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build Docker image
+      run: |
+        docker build -t internetproviders:latest .
+        docker build -f Dockerfile.dev -t internetproviders:dev .
+
+    - name: Test Docker image
+      run: |
+        docker run -d -p 5000:5000 --name test-app internetproviders:latest
+        sleep 10
+        curl -f http://localhost:5000 || exit 1
+        docker stop test-app

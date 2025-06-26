@@ -1,0 +1,34 @@
+# Development Dockerfile with all dependencies and hot-reload
+FROM node:18-alpine
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ git
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install ALL dependencies (including dev dependencies)
+RUN npm install
+
+# Copy the entire project
+COPY . .
+
+# Ensure TypeScript types are installed
+RUN npm install --save-dev @types/node @types/react @types/react-dom
+
+# Create .env file with development defaults
+RUN echo "PORT=5000" > .env && \
+    echo "NODE_ENV=development" >> .env && \
+    echo "SKIP_EXCEL_IMPORT=true" >> .env && \
+    echo "MAPBOX_ACCESS_TOKEN=your-token-here" >> .env
+
+# Expose ports (Vite uses 5173, Express uses 5000)
+EXPOSE 5000 5173
+
+# Volume for hot-reload
+VOLUME ["/app/client/src", "/app/server"]
+
+# Start development server
+CMD ["npm", "run", "dev"]
