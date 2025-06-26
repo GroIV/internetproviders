@@ -1,6 +1,55 @@
+# Dependencies
 node_modules
+
+# Build outputs
 dist
+client/dist
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and OS files
 .DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
 server/public
-vite.config.ts.*
+server/uploads
+
+# Archives
 *.tar.gz
+*.zip
+
+# Temporary files
+*.tmp
+*.temp
+vite.config.ts.*
+
+# Security - never commit these
+*.pem
+*.key
+*.cert
+.ssh
+secrets/
+
+# Testing
+coverage
+.nyc_output
+
+# Scripts that might contain sensitive data
+push-*.sh
+push-*.ps1
+setup-*.sh
+codex-*.sh
