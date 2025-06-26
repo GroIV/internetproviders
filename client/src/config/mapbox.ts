@@ -1,5 +1,9 @@
 // Mapbox configuration
-export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZm9rZXMzMDUiLCJhIjoiY2xyaDludmNtMG8wbjJxcG85ZW9uZmVmOCJ9.Bm7Oe4GpkDCifogFSyW32g';
+// IMPORTANT: Set VITE_MAPBOX_TOKEN in your .env file
+// Get your token from: https://www.mapbox.com/
+export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
-// You can also set this via environment variable VITE_MAPBOX_TOKEN
-// For production, always use environment variables 
+// Validate token exists
+if (!MAPBOX_TOKEN && import.meta.env.MODE === 'production') {
+  console.error('Mapbox token is required in production. Please set VITE_MAPBOX_TOKEN in your environment.');
+} 
