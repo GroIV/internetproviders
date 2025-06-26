@@ -1,0 +1,9 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+⚠️  No DATABASE_URL found, using in-memory storage
+   This is fine for development, but data will be lost on restart
+8:17:20 PM [express] serving on port 5000
+9:17:34 PM [express] POST /api/geocode/reverse 200 in 495ms :: {"zipCode":"78255"}
+9:18:02 PM [express] GET /api/coverage/78015 200 in 2ms :: []

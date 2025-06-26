@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { logger } from "@/lib/logger";
 
 // Form schema validation
 const formSchema = z.object({
@@ -54,21 +56,29 @@ const ZipCodeSearch = ({ fullWidth = false, onSearch, className = "" }: ZipCodeS
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            // In a real app, you would use a reverse geocoding service to get the ZIP code
-            // For now, we'll simulate with a mock response
-            const mockZipCode = "90210"; // Beverly Hills as an example
-            
-            // Update the form field
-            form.setValue("zipCode", mockZipCode, { shouldValidate: true });
-            
-            toast({
-              title: "Location detected",
-              description: `Using ZIP code: ${mockZipCode}`,
+            // Call the geocoding API to get ZIP code from coordinates
+            const response = await apiRequest('POST', '/api/geocode/reverse', {
+              lat: position.coords.latitude,
+              lon: position.coords.longitude
             });
+            
+            const data = await response.json();
+            
+            if (data.zipCode) {
+              // Update the form field
+              form.setValue("zipCode", data.zipCode, { shouldValidate: true });
+              
+              toast({
+                title: "Location detected",
+                description: `Using ZIP code: ${data.zipCode}`,
+              });
+            } else {
+              throw new Error("Could not determine ZIP code");
+            }
             
             setIsUsingLocation(false);
           } catch (error) {
-            console.error("Error getting ZIP from coordinates:", error);
+            logger.error("Error getting ZIP from coordinates", error, "ZipCodeSearch");
             toast({
               title: "Location Error",
               description: "Could not determine your ZIP code from location",
@@ -78,7 +88,7 @@ const ZipCodeSearch = ({ fullWidth = false, onSearch, className = "" }: ZipCodeS
           }
         },
         (error) => {
-          console.error("Geolocation error:", error);
+          logger.error("Geolocation error", error, "ZipCodeSearch");
           let message = "Could not determine your location";
           
           if (error.code === 1) {
@@ -99,7 +109,7 @@ const ZipCodeSearch = ({ fullWidth = false, onSearch, className = "" }: ZipCodeS
         }
       );
     } catch (error) {
-      console.error("Geolocation error:", error);
+      logger.error("Geolocation error", error, "ZipCodeSearch");
       toast({
         title: "Location Error",
         description: "Could not access location services",

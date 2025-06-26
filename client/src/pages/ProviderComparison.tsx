@@ -47,7 +47,7 @@ const ProviderComparison = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-10">
+    <div className="container mx-auto px-4 pt-24 pb-10">
       <div className="text-center mb-10">
         <h1 className="text-3xl font-display font-bold mb-4">Compare Internet Providers</h1>
         <p className="text-lg text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto">

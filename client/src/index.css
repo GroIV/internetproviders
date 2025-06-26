@@ -1,3 +1,5 @@
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -125,12 +127,22 @@
   }
 }
 
+/* Performance-optimized animations using transform and opacity only */
 @keyframes orbit {
   from {
     transform: rotate(0deg) translateX(140px) rotate(0deg);
   }
   to {
     transform: rotate(360deg) translateX(140px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-reverse {
+  from {
+    transform: rotate(360deg) translateX(160px) rotate(-360deg);
+  }
+  to {
+    transform: rotate(0deg) translateX(160px) rotate(0deg);
   }
 }
 
@@ -154,8 +166,108 @@
   100% { opacity: 1; }
 }
 
+@keyframes pulse-slow {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% { 
+    transform: scale(1.1);
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes morph {
+  0%, 100% { 
+    border-radius: 50%;
+    transform: rotate(0deg) scale(1);
+  }
+  25% { 
+    border-radius: 45%;
+    transform: rotate(90deg) scale(1.05);
+  }
+  50% { 
+    border-radius: 50%;
+    transform: rotate(180deg) scale(1);
+  }
+  75% { 
+    border-radius: 45%;
+    transform: rotate(270deg) scale(1.05);
+  }
+}
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes underline-reveal {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+@keyframes slide-in-left {
+  0% { 
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  100% { 
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  0% { 
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes count {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes card-float {
+  0%, 100% { 
+    transform: translateY(0) translateZ(0);
+  }
+  33% { 
+    transform: translateY(-10px) translateZ(0);
+  }
+  66% { 
+    transform: translateY(5px) translateZ(0);
+  }
+}
+
+/* Animation classes with GPU acceleration */
 .animate-float {
   animation: float 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-orbit {
+  animation: orbit 30s linear infinite;
+  will-change: transform;
+}
+
+.animate-orbit-reverse {
+  animation: orbit-reverse 25s linear infinite;
+  will-change: transform;
 }
 
 .animate-slide-up {
@@ -170,6 +282,142 @@
   animation: fadeIn 0.5s ease-out forwards;
 }
 
+.animate-fade-in-delayed {
+  animation: fadeIn 0.8s ease-out 0.3s forwards;
+  opacity: 0;
+}
+
 .animate-bounce-slow {
   animation: bounce 3s infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-pulse-slow-delayed {
+  animation: pulse-slow 4s ease-in-out 2s infinite;
+  will-change: transform, opacity;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 60s linear infinite;
+  will-change: transform;
+}
+
+.animate-morph {
+  animation: morph 20s ease-in-out infinite;
+  will-change: transform, border-radius;
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 3s ease infinite;
+}
+
+.animate-underline-reveal {
+  animation: underline-reveal 0.8s ease-out 0.5s forwards;
+  transform-origin: left;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.6s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+.animate-count {
+  animation: count 2s ease-out forwards;
+}
+
+.animate-count-delayed {
+  animation: count 2s ease-out 0.5s forwards;
+  opacity: 0;
+}
+
+.card-float {
+  animation: card-float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Glassmorphism effect */
+.glass-card {
+  @apply bg-white/80 dark:bg-neutral-900/80;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* GPU acceleration utility */
+.transform-gpu {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Enhanced animation for electric effects */
+@keyframes electric-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes data-flow {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Neon glow effects */
+.neon-glow {
+  text-shadow: 
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 40px currentColor;
+}
+
+.neon-border {
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.3),
+    inset 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+/* Leaflet Map Fixes */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}
+
+.leaflet-control-container {
+  z-index: 800;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply rounded-lg shadow-lg;
+}
+
+.leaflet-popup-content {
+  @apply m-2;
+}
+
+/* Fix for Leaflet controls in dark mode */
+.dark .leaflet-control-zoom a,
+.dark .leaflet-control-layers-toggle {
+  @apply bg-neutral-800 text-neutral-100 border-neutral-700;
+}
+
+.dark .leaflet-control-zoom a:hover {
+  @apply bg-neutral-700;
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  @apply bg-neutral-800 text-neutral-100;
+}
+
+/* Fix marker icon paths */
+.leaflet-default-icon-path {
+  background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png);
 }

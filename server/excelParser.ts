@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs/promises';
-import { storage } from './storage';
+import { getStorage } from './storageFactory';
 import { InsertProvider, InsertCoverage } from '@shared/schema';
 
 interface ProviderZipMap {
@@ -14,9 +14,17 @@ interface ProviderZipMap {
  */
 export async function parseExcelData(filePath: string): Promise<void> {
   try {
+    // Get storage instance
+    const storage = await getStorage();
+    
     // Check if file exists
-    const excelStats = await fs.stat(filePath);
-    if (!excelStats.isFile()) {
+    try {
+      const excelStats = await fs.stat(filePath);
+      if (!excelStats.isFile()) {
+        console.error(`Excel file not found at path: ${filePath}`);
+        return;
+      }
+    } catch (error) {
       console.error(`Excel file not found at path: ${filePath}`);
       return;
     }
@@ -33,98 +41,108 @@ export async function parseExcelData(filePath: string): Promise<void> {
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
-    // Convert to JSON
-    const data = XLSX.utils.sheet_to_json(worksheet);
+    // Convert to JSON with header option
+    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
     
-    // DEBUG: Log the first row to see the structure
-    if (data.length > 0) {
-      console.log("Excel file first row structure:", Object.keys(data[0] as object));
+    if (data.length < 2) {
+      console.error('Excel file does not have enough data');
+      return;
     }
     
-    // Organize data by provider and ZIP
-    const providerZipMap: ProviderZipMap = {};
+    // First row contains headers
+    const headers = data[0];
+    console.log('Excel headers:', headers);
     
-    // Based on the logs, we now know the actual provider columns
-    // The first row contains the provider names in certain columns
-    // We need to fix the row detection since we're not adding ZIP codes properly
+    // Find ZIP code column (usually the first column)
+    let zipCodeIndex = 0;
     
-    // From looking at the first row columns, we need to update our approach
-    // Let's manually define the providers we recognize in the data:
-    const possibleProviderNames = [
-      ' 201 ',     // Alta
-      ' 730 ',     // Astound
-      ' 6,153 ',   // ATT
-      ' 533 ',     // Brightspeed
-      ' 3,334 ',   // Earthlink
-      ' 139 ',     // Fidium
-      ' 1,560 ',   // Frontier
-      ' 356 ',     // Metronet
-      ' 2,076 ',   // Optimum
-      ' 11,546 ',  // Spectrum
-      ' 1,917 ',   // Windstream
-      ' 336 ',     // WOW
-      ' 424 '      // Ziply
-    ];
+    // Provider name mapping - more flexible approach
+    const providerColumns: Map<number, string> = new Map();
     
-    // Create providers with more recognizable names based on the header row
-    const providerNameMap: Record<string, string> = {
-      ' 201 ': 'Alta',
-      ' 730 ': 'Astound',
-      ' 6,153 ': 'ATT',
-      ' 533 ': 'Brightspeed',
-      ' 3,334 ': 'Earthlink',
-      ' 139 ': 'Fidium',
-      ' 1,560 ': 'Frontier',
-      ' 356 ': 'Metronet',
-      ' 2,076 ': 'Optimum',
-      ' 11,546 ': 'Spectrum',
-      ' 1,917 ': 'Windstream',
-      ' 336 ': 'WOW',
-      ' 424 ': 'Ziply'
-    };
-    
-    // Initialize provider sets
-    for (const providerColumn of possibleProviderNames) {
-      const providerName = providerNameMap[providerColumn] || `Provider ${providerColumn.trim()}`;
-      providerZipMap[providerName] = new Set<string>();
-    }
-    
-    // We need to handle the first row separately because it contains the headers
-    let isFirstRow = true;
-    
-    for (const row of data) {
-      if (isFirstRow) {
-        isFirstRow = false;
-        continue; // Skip the header row
+    // Detect provider columns (skip the ZIP code column)
+    for (let i = 1; i < headers.length; i++) {
+      const header = String(headers[i]).trim();
+      
+      // Try to detect provider names from headers
+      let providerName = '';
+      
+      // Common provider name patterns
+      if (header.toLowerCase().includes('alta')) providerName = 'Alta';
+      else if (header.toLowerCase().includes('astound')) providerName = 'Astound';
+      else if (header.toLowerCase().includes('at&t') || header.toLowerCase().includes('att')) providerName = 'AT&T';
+      else if (header.toLowerCase().includes('brightspeed')) providerName = 'Brightspeed';
+      else if (header.toLowerCase().includes('earthlink')) providerName = 'Earthlink';
+      else if (header.toLowerCase().includes('fidium')) providerName = 'Fidium';
+      else if (header.toLowerCase().includes('frontier')) providerName = 'Frontier';
+      else if (header.toLowerCase().includes('metronet')) providerName = 'Metronet';
+      else if (header.toLowerCase().includes('optimum')) providerName = 'Optimum';
+      else if (header.toLowerCase().includes('spectrum')) providerName = 'Spectrum';
+      else if (header.toLowerCase().includes('windstream')) providerName = 'Windstream';
+      else if (header.toLowerCase().includes('wow')) providerName = 'WOW';
+      else if (header.toLowerCase().includes('ziply')) providerName = 'Ziply';
+      else if (header.toLowerCase().includes('verizon')) providerName = 'Verizon';
+      else if (header.toLowerCase().includes('cox')) providerName = 'Cox';
+      else if (header.toLowerCase().includes('xfinity') || header.toLowerCase().includes('comcast')) providerName = 'Xfinity';
+      else if (header && header !== '__EMPTY' && !header.match(/^\d+$/)) {
+        // Use the header as provider name if it's not empty or just numbers
+        providerName = header;
       }
       
-      // Get the ZIP code from the __EMPTY field
-      const zipCode = (row as any)['__EMPTY'];
+      if (providerName) {
+        providerColumns.set(i, providerName);
+      }
+    }
+    
+    console.log(`Found ${providerColumns.size} provider columns`);
+    
+    // Initialize provider map
+    const providerZipMap: ProviderZipMap = {};
+    Array.from(providerColumns.values()).forEach(providerName => {
+      providerZipMap[providerName] = new Set<string>();
+    });
+    
+    // Process data rows (skip header row)
+    for (let rowIndex = 1; rowIndex < data.length; rowIndex++) {
+      const row = data[rowIndex];
       
-      if (!zipCode || typeof zipCode !== 'number') {
-        console.warn('Row missing valid ZIP code:', row);
+      // Get ZIP code
+      const zipCode = String(row[zipCodeIndex] || '').trim();
+      
+      // Validate ZIP code
+      if (!zipCode || !/^\d{5}$/.test(zipCode)) {
         continue;
       }
       
-      // Process each provider column from our identified list
-      for (const providerColumn of possibleProviderNames) {
-        const value = (row as any)[providerColumn];
+      // Check each provider column
+      Array.from(providerColumns.entries()).forEach(([colIndex, providerName]) => {
+        const value = row[colIndex];
         
-        // If the value is greater than 0, consider the provider has service
-        if (value && typeof value === 'number' && value > 0) {
-          const providerName = providerNameMap[providerColumn] || `Provider ${providerColumn.trim()}`;
-          providerZipMap[providerName].add(String(zipCode));
+        // If there's any non-empty value, consider the provider has service
+        if (value !== undefined && value !== null && value !== '' && value !== 0) {
+          providerZipMap[providerName].add(zipCode);
         }
-      }
+      });
+    }
+    
+    // Clear existing data (optional - remove if you want to append)
+    console.log('Clearing existing provider data...');
+    const existingProviders = await storage.getProviders();
+    for (const provider of existingProviders) {
+      await storage.deleteProvider(provider.id);
     }
     
     // Save providers and their coverage to storage
     for (const [providerName, zipCodes] of Object.entries(providerZipMap)) {
-      // Create the provider
+      if (zipCodes.size === 0) {
+        console.log(`Skipping provider ${providerName} - no coverage areas found`);
+        continue;
+      }
+      
+      // Create the provider with proper logo URLs
       const provider: InsertProvider = {
         name: providerName,
-        logo: '', // Default empty, would be populated later
-        website: '', // Default empty, would be populated later
+        logo: getProviderLogoUrl(providerName),
+        website: getProviderWebsite(providerName),
       };
       
       const savedProvider = await storage.createProvider(provider);
@@ -149,9 +167,51 @@ export async function parseExcelData(filePath: string): Promise<void> {
   }
 }
 
+// Helper function to get provider logo URLs
+function getProviderLogoUrl(providerName: string): string {
+  const name = providerName.toLowerCase();
+  
+  // Return actual logo URLs for major providers
+  if (name.includes('xfinity') || name.includes('comcast')) {
+    return 'https://corporate.comcast.com/images/comcast-logo.png';
+  } else if (name.includes('spectrum')) {
+    return 'https://www.spectrum.com/content/dam/spectrum/residential/en/images/spectrum-logo.svg';
+  } else if (name.includes('at&t') || name === 'att') {
+    return 'https://www.att.com/ecms/dam/att/consumer/global/logos/att_globe_500x500.jpg';
+  } else if (name.includes('verizon')) {
+    return 'https://www.verizon.com/content/dam/verizon/personal/v-logo.svg';
+  } else if (name.includes('cox')) {
+    return 'https://www.cox.com/content/dam/cox/images/logos/cox-logo.svg';
+  }
+  
+  // For others, return empty string and let the frontend handle it
+  return '';
+}
+
+// Helper function to get provider websites
+function getProviderWebsite(providerName: string): string {
+  const name = providerName.toLowerCase();
+  
+  if (name.includes('xfinity') || name.includes('comcast')) return 'https://www.xfinity.com';
+  if (name.includes('spectrum')) return 'https://www.spectrum.com';
+  if (name.includes('at&t') || name === 'att') return 'https://www.att.com';
+  if (name.includes('verizon')) return 'https://www.verizon.com';
+  if (name.includes('cox')) return 'https://www.cox.com';
+  if (name.includes('frontier')) return 'https://www.frontier.com';
+  if (name.includes('centurylink')) return 'https://www.centurylink.com';
+  if (name.includes('windstream')) return 'https://www.windstream.com';
+  if (name.includes('optimum')) return 'https://www.optimum.com';
+  if (name.includes('earthlink')) return 'https://www.earthlink.net';
+  
+  return '';
+}
+
 // Function to initialize sample plan data
 export async function initializeSamplePlans(): Promise<void> {
   try {
+    // Get storage instance
+    const storage = await getStorage();
+    
     const providers = await storage.getProviders();
     
     // Only add sample plans if providers exist

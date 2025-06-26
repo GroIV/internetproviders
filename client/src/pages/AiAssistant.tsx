@@ -4,57 +4,69 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
+import { apiRequest } from '@/lib/queryClient';
+
+interface Message {
+  sender: 'user' | 'bot';
+  text: string;
+  isAI?: boolean;
+}
 
 const AiAssistant = () => {
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       sender: 'bot',
       text: "Hi there! I'm your Internet Assistant. How can I help you today?",
     }
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
     
     // Add user message
-    const userMessage = {
+    const userMessage: Message = {
       sender: 'user',
       text: inputValue,
     };
     
-    setMessages([...messages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setIsLoading(true);
     
-    // Simulate AI response after a short delay
-    setTimeout(() => {
-      const botResponse = {
+    try {
+      // Call the AI API
+      const response = await apiRequest('POST', '/api/ai/chat', {
+        message: inputValue,
+        context: {
+          // You could add user context here if available
+          // zipCode: userZipCode,
+          // currentProvider: userProvider,
+        }
+      });
+      
+      const data = await response.json();
+      
+      const botResponse: Message = {
         sender: 'bot',
-        text: getSimulatedResponse(inputValue),
+        text: data.message,
+        isAI: data.isAI
       };
       
       setMessages(prev => [...prev, botResponse]);
-    }, 1000);
-  };
-  
-  // Very simple hardcoded responses for demonstration
-  const getSimulatedResponse = (input: string) => {
-    const lowerInput = input.toLowerCase();
-    
-    if (lowerInput.includes('fiber') || lowerInput.includes('cable') || lowerInput.includes('dsl')) {
-      return "Fiber offers the fastest speeds (up to 1 Gbps or more) with symmetrical upload/download, cable provides good speeds (50-500 Mbps) but asymmetrical performance, while DSL is slower (5-100 Mbps) but often more widely available in rural areas.";
-    } else if (lowerInput.includes('speed') || lowerInput.includes('fast')) {
-      return "For basic web browsing and email, 25 Mbps is sufficient. For HD streaming, aim for 50 Mbps. For multiple users or 4K streaming, 100+ Mbps is recommended. For gaming and large file transfers, 300+ Mbps provides the best experience.";
-    } else if (lowerInput.includes('gaming')) {
-      return "For gaming, low latency (ping) is often more important than raw speed. Look for plans with ping under 50ms. Fiber connections typically offer the best latency. I'd recommend at least 100 Mbps download and 10 Mbps upload for gaming while others use the network.";
-    } else if (lowerInput.includes('streaming') || lowerInput.includes('netflix') || lowerInput.includes('youtube')) {
-      return "For streaming video: SD quality needs 3-5 Mbps, HD needs 5-10 Mbps, and 4K needs 25-35 Mbps per stream. If multiple people stream simultaneously, add these requirements together.";
-    } else if (lowerInput.includes('router') || lowerInput.includes('wifi')) {
-      return "For the best Wi-Fi coverage, place your router centrally in your home, elevated if possible. Avoid placing it near metal objects, microwaves, or thick walls. Consider a mesh network system for larger homes. Make sure to use a secure password and WPA3 encryption if available.";
-    } else {
-      return "I'd be happy to help with your internet service questions. You can ask me about choosing between providers, understanding internet technologies, troubleshooting connection issues, or optimizing your home network.";
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorResponse: Message = {
+        sender: 'bot',
+        text: 'Sorry, I encountered an error. Please try again later.',
+        isAI: false
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -67,8 +79,17 @@ const AiAssistant = () => {
     "Which streaming services use the most bandwidth?"
   ];
   
+  const handleQuickQuestion = (question: string) => {
+    setInputValue(question);
+    // Trigger form submission
+    const form = document.getElementById('chat-form') as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+    }
+  };
+  
   return (
-    <div className="container mx-auto px-4 py-10">
+    <div className="container mx-auto px-4 pt-24 pb-10">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold mb-4">AI Internet Assistant</h1>
@@ -119,6 +140,11 @@ const AiAssistant = () => {
                           }`}
                         >
                           <p className="text-sm">{message.text}</p>
+                          {message.sender === 'bot' && message.isAI !== undefined && (
+                            <p className="text-xs mt-1 opacity-60">
+                              {message.isAI ? '✨ AI Response' : '📚 Knowledge Base'}
+                            </p>
+                          )}
                         </div>
                         
                         {message.sender === 'user' && (
@@ -128,18 +154,39 @@ const AiAssistant = () => {
                         )}
                       </motion.div>
                     ))}
+                    
+                    {isLoading && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex justify-start"
+                      >
+                        <div className="flex items-center space-x-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg px-4 py-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                   
                   <div className="border-t border-neutral-200 dark:border-neutral-800 p-4">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <form id="chat-form" onSubmit={handleSendMessage} className="flex gap-2">
                       <Input
                         type="text"
                         placeholder="Ask me anything about internet services..."
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         className="flex-1"
+                        disabled={isLoading}
                       />
-                      <Button type="submit" className="gradient-bg hover:opacity-90">
+                      <Button 
+                        type="submit" 
+                        className="gradient-bg hover:opacity-90"
+                        disabled={isLoading}
+                      >
                         <i className="ri-send-plane-fill"></i>
                       </Button>
                     </form>
@@ -151,7 +198,8 @@ const AiAssistant = () => {
                           variant="outline"
                           size="sm"
                           className="text-xs"
-                          onClick={() => setInputValue(question)}
+                          onClick={() => handleQuickQuestion(question)}
+                          disabled={isLoading}
                         >
                           {question}
                         </Button>
@@ -202,19 +250,19 @@ const AiAssistant = () => {
                     <div>
                       <h3 className="font-medium mb-2">Popular Topics:</h3>
                       <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" size="sm" className="justify-start" onClick={() => setInputValue("What's the difference between Mbps and MBps?")}>
+                        <Button variant="outline" size="sm" className="justify-start" onClick={() => handleQuickQuestion("What's the difference between Mbps and MBps?")}>
                           <i className="ri-speed-line mr-2"></i>
                           <span className="text-xs">Internet Speeds</span>
                         </Button>
-                        <Button variant="outline" size="sm" className="justify-start" onClick={() => setInputValue("What is latency and why does it matter?")}>
+                        <Button variant="outline" size="sm" className="justify-start" onClick={() => handleQuickQuestion("What is latency and why does it matter?")}>
                           <i className="ri-timer-line mr-2"></i>
                           <span className="text-xs">Latency</span>
                         </Button>
-                        <Button variant="outline" size="sm" className="justify-start" onClick={() => setInputValue("How do I secure my home WiFi?")}>
+                        <Button variant="outline" size="sm" className="justify-start" onClick={() => handleQuickQuestion("How do I secure my home WiFi?")}>
                           <i className="ri-lock-line mr-2"></i>
                           <span className="text-xs">Security</span>
                         </Button>
-                        <Button variant="outline" size="sm" className="justify-start" onClick={() => setInputValue("What's a good upload speed?")}>
+                        <Button variant="outline" size="sm" className="justify-start" onClick={() => handleQuickQuestion("What's a good upload speed?")}>
                           <i className="ri-upload-line mr-2"></i>
                           <span className="text-xs">Upload Speeds</span>
                         </Button>
@@ -255,6 +303,13 @@ const AiAssistant = () => {
                           Get objective information about providers and services without sales pressure
                         </p>
                       </div>
+                    </div>
+                    
+                    <div className="mt-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-md">
+                      <p className="text-xs text-primary-700 dark:text-primary-300">
+                        <i className="ri-information-line mr-1"></i>
+                        {process.env.AI_API_KEY ? 'AI-powered responses active' : 'Using knowledge base responses'}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

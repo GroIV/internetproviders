@@ -2,25 +2,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
+import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from "@/lib/logger";
 
 const EducationalResourcesPreview = () => {
   const [_, setLocation] = useLocation();
   
   const resources = [
     {
+      id: "understanding-internet-speeds",
       title: "Understanding Internet Speeds",
       description: "Learn what different speed tiers mean and how much bandwidth you actually need for various activities.",
-      image: "https://images.unsplash.com/photo-1563770557593-bda3c68c9c9a?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
+      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
     },
     {
+      id: "wifi-optimization",
       title: "Wi-Fi Optimization Tips",
       description: "Discover how to maximize your home Wi-Fi performance with simple adjustments and optimal router placement.",
-      image: "https://images.unsplash.com/photo-1586804699875-02246fdeaf0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
+      image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
     },
     {
+      id: "fiber-cable-dsl-comparison",
       title: "Fiber vs Cable vs DSL",
       description: "Compare the different internet connection types to understand their strengths, limitations, and best use cases.",
-      image: "https://images.unsplash.com/photo-1485083269755-a7b559a4fe5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
+      image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80"
     }
   ];
 
@@ -46,17 +52,40 @@ const EducationalResourcesPreview = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                <img src={resource.image} alt={resource.title} className="w-full h-48 object-cover" />
+              <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 group">
+                <div 
+                  className="h-48 overflow-hidden bg-neutral-100 dark:bg-neutral-800 cursor-pointer"
+                  onClick={() => {
+                    logger.info('Card image clicked', { resourceId: resource.id });
+                    setLocation(`/resources/${resource.id}`);
+                  }}
+                >
+                  <ImageWithFallback 
+                    src={resource.image} 
+                    alt={resource.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
                 <CardContent className="p-6">
-                  <h3 className="text-xl font-display font-bold mb-2 text-neutral-900 dark:text-neutral-100">{resource.title}</h3>
+                  <h3 
+                    className="text-xl font-display font-bold mb-2 text-neutral-900 dark:text-neutral-100 cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                    onClick={() => {
+                      logger.info('Title clicked', { resourceId: resource.id });
+                      setLocation(`/resources/${resource.id}`);
+                    }}
+                  >
+                    {resource.title}
+                  </h3>
                   <p className="text-neutral-600 dark:text-neutral-300 mb-4">
                     {resource.description}
                   </p>
-                  <Button variant="link" className="inline-flex items-center text-primary-600 dark:text-primary-400 font-medium hover:text-primary-700 dark:hover:text-primary-300 p-0">
+                  <a
+                    href={`/resources/${resource.id}`}
+                    className="inline-flex items-center text-primary-600 dark:text-primary-400 font-medium hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                  >
                     Read Guide
                     <i className="ri-arrow-right-line ml-1"></i>
-                  </Button>
+                  </a>
                 </CardContent>
               </Card>
             </motion.div>
@@ -74,6 +103,34 @@ const EducationalResourcesPreview = () => {
         </div>
       </div>
     </section>
+  );
+};
+
+// Simple, bulletproof image component
+const ImageWithFallback = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  
+  const fallbackSrc = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=340&q=80";
+  
+  return (
+    <>
+      {loading && (
+        <Skeleton className="absolute inset-0 w-full h-48" />
+      )}
+      <img
+        src={error ? fallbackSrc : src}
+        alt={alt}
+        className={`${className} ${loading ? 'opacity-0' : 'opacity-100'}`}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          if (!error) {
+            setError(true);
+            setLoading(false);
+          }
+        }}
+      />
+    </>
   );
 };
 

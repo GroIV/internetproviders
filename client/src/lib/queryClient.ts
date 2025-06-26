@@ -1,9 +1,31 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { createAPIError, NetworkError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorMessage = res.statusText;
+    let errorDetails: any = null;
+    
+    try {
+      const text = await res.text();
+      if (text) {
+        try {
+          errorDetails = JSON.parse(text);
+          if (errorDetails.message) {
+            errorMessage = errorDetails.message;
+          }
+        } catch {
+          errorMessage = text;
+        }
+      }
+    } catch (e) {
+      logger.error('Failed to parse error response', e, 'throwIfResNotOk');
+    }
+    
+    const error = createAPIError(res, errorMessage);
+    error.details = errorDetails;
+    throw error;
   }
 }
 
@@ -12,15 +34,31 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: data ? { "Content-Type": "application/json" } : {},
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
 
-  await throwIfResNotOk(res);
-  return res;
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      const netError = new NetworkError('Unable to connect to the server');
+      logger.error(`Network Error: ${method} ${url}`, netError, 'apiRequest');
+      throw netError;
+    }
+    
+    // Log API errors
+    if (error instanceof Error) {
+      logger.error(`API Error: ${method} ${url}`, error, 'apiRequest');
+    }
+    
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

@@ -45,11 +45,33 @@ export interface RecommendationResponse {
 
 // Format price from cents to dollars
 export const formatPrice = (cents: number) => {
-  return `$${(cents / 100).toFixed(2)}`;
+  // Validate input
+  if (typeof cents !== 'number' || isNaN(cents)) {
+    return '$0.00';
+  }
+  
+  // Handle negative values
+  const isNegative = cents < 0;
+  const absoluteCents = Math.abs(cents);
+  
+  // Format with proper rounding
+  const dollars = (absoluteCents / 100).toFixed(2);
+  
+  return `${isNegative ? '-' : ''}$${dollars}`;
 };
 
 // Format speed with unit
 export const formatSpeed = (speed: number) => {
+  // Validate input
+  if (typeof speed !== 'number' || isNaN(speed) || speed < 0) {
+    return '0 Mbps';
+  }
+  
+  // Format based on magnitude
+  if (speed >= 1000) {
+    return `${(speed / 1000).toFixed(1)} Gbps`;
+  }
+  
   return `${speed} Mbps`;
 };
 
